@@ -1,0 +1,491 @@
+USE [BSE_NSE]
+GO
+
+/****** Object:  Table [dbo].[MonthlyExpense]    Script Date: 12-Sep-2023 5:07:18 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[MonthlyExpense](
+	[RecID] [bigint] IDENTITY(1,1) NOT NULL,
+	[TranDate] [datetime] NULL,
+	[BankDesc] [nvarchar](500) NULL,
+	[BankDesc2] [nvarchar](500) NULL,
+	[MyDesc] [nvarchar](500) NULL,
+	[AmtDeducted] [numeric](18, 2) NULL,
+	[PaidUsing] [nvarchar](50) NULL,
+	[IsInvestment] [tinyint] NULL,
+	[CCPaid] [tinyint] NULL,
+	[AddedOn] [datetime] NULL,
+	[FYYear] [int] NULL
+) ON [PRIMARY]
+
+GO
+
+ALTER TABLE [dbo].[MonthlyExpense] ADD  CONSTRAINT [DF_MonthlyExpense_CCPaid]  DEFAULT ((0)) FOR [CCPaid]
+GO
+
+ALTER TABLE [dbo].[MonthlyExpense] ADD  CONSTRAINT [DF_MonthlyExpense_AddedOn]  DEFAULT (getdate()) FOR [AddedOn]
+GO
+
+---------------
+
+USE [BSE_NSE]
+GO
+
+/****** Object:  Table [dbo].[PetrolPrice]    Script Date: 12-Sep-2023 5:07:33 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PetrolPrice](
+	[RecID] [bigint] IDENTITY(1,1) NOT NULL,
+	[FillingDate] [datetime] NULL,
+	[BankDesc] [nvarchar](500) NULL,
+	[MyDesc] [nvarchar](500) NULL,
+	[MyLocation] [nvarchar](50) NULL,
+	[TotalPaid] [numeric](18, 2) NULL,
+	[TotalLitre] [numeric](18, 2) NULL,
+	[PerLitre]  AS (CONVERT([numeric](18,2),[TotalPaid]/[TotalLitre])),
+	[PaidUsing] [nvarchar](50) NULL,
+	[RefundDate] [datetime] NULL,
+	[RefundBankDesc] [nvarchar](500) NULL,
+	[RefundAmount] [numeric](18, 2) NULL,
+	[KMDriven] [int] NULL,
+	[AddedOn] [datetime] NULL,
+	[FYYear] [int] NULL,
+	[CCPaid] [int] NULL
+) ON [PRIMARY]
+
+GO
+
+ALTER TABLE [dbo].[PetrolPrice] ADD  CONSTRAINT [DF_PetrolPrice_CCPaid]  DEFAULT ((0)) FOR [CCPaid]
+GO
+
+--------------
+USE [BSE_NSE]
+GO
+
+/****** Object:  Table [dbo].[DieselPrice]    Script Date: 12-Sep-2023 5:07:44 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[DieselPrice](
+	[RecID] [bigint] IDENTITY(1,1) NOT NULL,
+	[FillingDate] [datetime] NULL,
+	[BankDesc] [nvarchar](500) NULL,
+	[MyDesc] [nvarchar](500) NULL,
+	[MyLocation] [nvarchar](50) NULL,
+	[TotalPaid] [numeric](18, 2) NULL,
+	[TotalLitre] [numeric](18, 2) NULL,
+	[PerLitre]  AS (CONVERT([numeric](18,2),[TotalPaid]/[TotalLitre])),
+	[PaidUsing] [nvarchar](50) NULL,
+	[RefundDate] [datetime] NULL,
+	[RefundBankDesc] [nvarchar](500) NULL,
+	[RefundAmount] [numeric](18, 2) NULL,
+	[KMDriven] [int] NULL,
+	[AddedOn] [datetime] NULL,
+	[FYYear] [int] NULL,
+	[CCPaid] [int] NULL
+) ON [PRIMARY]
+
+GO
+
+ALTER TABLE [dbo].[DieselPrice] ADD  CONSTRAINT [DF_DieselPrice_CCPaid]  DEFAULT ((0)) FOR [CCPaid]
+GO
+
+-----------
+
+USE [BSE_NSE]
+GO
+
+/****** Object:  StoredProcedure [dbo].[usp_SAVE_Monthly_Expense_EXEC]    Script Date: 12-Sep-2023 5:07:54 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE PROCEDURE [dbo].[usp_SAVE_Monthly_Expense_EXEC]
+AS
+BEGIN
+	
+select * from [dbo].[MonthlyExpense] order by TranDate desc
+select * from [dbo].[MonthlyExpense] where IsInvestment=1 order by TranDate desc
+select * from [dbo].[MonthlyExpense] where PaidUsing='ICICI Credit Card' order by TranDate desc
+select * from [dbo].[MonthlyExpense] where MONTH(TranDate)=4 and YEAR(TranDate)=2023 order by TranDate desc
+select * from [dbo].[MonthlyExpense] where MyDesc like '%airt%' order by TranDate desc --RecID
+
+/*select * from [dbo].[MonthlyExpense] where PaidUsing='SBI Credit Card' and TranDate between '17-Jun-2023' and '17-Jul-2023' order by TranDate desc
+select * from [dbo].[PetrolPrice]  where PaidUsing='SBI Credit Card' and FillingDate between '17-Jun-2023' and '17-Jul-2023' order by FillingDate desc
+select * from [dbo].[DieselPrice]  where PaidUsing='SBI Credit Card' and FillingDate between '17-Jun-2023' and '17-Jul-2023' order by FillingDate desc*/
+
+select * from [dbo].[DieselPrice] order by FillingDate desc
+select * from [dbo].[PetrolPrice] order by FillingDate desc--where RefundDate is null
+select SUM([SBAmnt])+ SUM(FDAmnt) from [dbo].[Balances]
+
+exec [dbo].[usp_GET_Monthly_Report]
+exec [dbo].[usp_GET_Monthly_Report_Year] null, 2020
+exec [dbo].[usp_GET_Monthly_Report_Year] null, 2021
+exec [dbo].[usp_GET_Monthly_Report_Year] null, 2022
+exec [dbo].[usp_GET_Monthly_Report_Year] null, 2023
+exec [dbo].[usp_GET_Monthly_Report_Year] null, 2024
+exec [dbo].[usp_GET_Monthly_Report] 'SPENT'
+exec [dbo].[usp_GET_Petrol_Report]
+exec [dbo].[usp_GET_Diesel_Report]
+
+
+--	INSERT INTO [dbo].[MonthlyExpense]
+--			   ([TranDate]
+--			   ,[BankDesc]
+--			   ,[BankDesc2]
+--			   ,[MyDesc]
+--			   ,[AmtDeducted]
+--			   ,[PaidUsing]
+--			   ,[IsInvestment]
+--			   ,[AddedOn]
+--			   ,[FYYear])
+--		 VALUES
+--			   ('5-Sep-2023'
+--				,'TO TRANSFER
+--UPI/DR/324830599034/UIDAI/ICIC/uidai.rzp@/Paymentt'
+--				,''
+--				,'Aadhaar address change Reshma'
+--				,50
+--				,'SBI SB'
+--				,0
+--				,GETDATE()
+--				,2024)
+	
+
+--INSERT INTO [PetrolPrice]
+--           ([FillingDate]
+--           ,[BankDesc]
+--           ,[MyDesc]
+--           ,[MyLocation]
+--           ,[TotalPaid]
+--           ,[TotalLitre]
+--           ,[PaidUsing]
+--           ,[AddedOn]
+--		   ,[KMDriven]
+--		   ,[FYYear])
+--     VALUES
+--           ('26-Jul-2023'
+--           ,'K JAMAL KUTTY HAJEE an Malappuram IN'
+--           ,'Travel in manjeri'
+--           ,'IOC, Wandoor'
+--           ,2192.98
+--           ,20
+--           ,'SBI Credit Card'
+--           ,GETDATE()
+--		   ,76840
+--		   ,2024)
+
+
+--INSERT INTO [DieselPrice]
+--           ([FillingDate]
+--           ,[BankDesc]
+--           ,[MyDesc]
+--           ,[MyLocation]
+--           ,[TotalPaid]
+--           ,[TotalLitre]
+--           ,[PaidUsing]
+--           ,[AddedOn]
+--		   ,[KMDriven]
+--		   ,[FYYear])
+--     VALUES
+--           ('04-Sep-2023'
+--           ,'K JAMALKUTTY HAJEE AN KOZHIKODE IN'
+--           ,'Ameya school'
+--           ,'Manjeri'
+--           ,2170.92
+--           ,22
+--           ,'SBI Credit Card'
+--           ,GETDATE()
+--		   ,116000
+--		   ,2024)
+	
+
+	/*
+INSERT INTO [dbo].[MonthlyReturn]
+           ([TranDate]
+           ,[BankDesc]
+           ,[BankDesc2]
+           ,[MyDesc]
+           ,[AmtCredited]
+           ,[PaidUsing]
+           ,[IsInvestment]
+           ,[AddedOn]
+		   ,[FYYear])
+     VALUES
+           ('18-Mar-2020'
+           ,'004210 BLPGCM162810DT1403 1322047633'
+           ,'000000000000'
+           ,'GAS Subsidy'
+		   ,217.67
+           ,'Syndicate'
+           ,0
+           ,GETDATE()
+		   ,2022)
+		*/
+				
+----------	--Refund Update
+--update [dbo].[PetrolPrice] 
+--set 
+--	RefundDate='12-Oct-2021', 
+--	RefundBankDesc='BULK POSTING
+--00000004365 081021 S R FUELS',
+--	RefundAmount=19.45	
+--where RecID=170059
+
+
+--select * from [dbo].[MonthlyExpense] where RecID=10044
+--update [dbo].[MonthlyExpense] set MyDesc='Going to Manjeri' where RecID=40029 --8099.00
+--select * from [dbo].[MonthlyExpense] where PaidUsing='ICICI Credit Card' and CCPaid=0 order by RecID desc
+--update [dbo].[MonthlyExpense] set CCPaid=1 where PaidUsing='ICICI Credit Card' and CCPaid=0 and trandate<'21-feb-2021'
+
+--select sum(AmtDeducted) from [dbo].[MonthlyExpense] where PaidUsing='SBI Credit Card' and CCPaid=0
+--select * from [dbo].[PetrolPrice] where PaidUsing='SBI Credit Card'
+
+--select * from [dbo].[MonthlyExpense] where PaidUsing='SBI Credit Card' and CCPaid=0 order by TranDate desc
+--select sum(AmtDeducted) from (
+--select AmtDeducted from [dbo].[MonthlyExpense] where PaidUsing='SBI Credit Card' and CCPaid=0 
+--union all
+--select TotalPaid from [dbo].[PetrolPrice] where PaidUsing='SBI Credit Card' and CCPaid=0
+--)x
+
+--	select (57132+39030+44636+46895)/4.0
+
+END
+
+
+GO
+
+-----------------
+USE [BSE_NSE]
+GO
+
+/****** Object:  StoredProcedure [dbo].[usp_GET_Monthly_Report_Details]    Script Date: 12-Sep-2023 5:08:05 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE PROCEDURE [dbo].[usp_GET_Monthly_Report_Details]
+@OrderBy nvarchar(25)=NULL,
+@YearIN	 INT=NULL,
+@MonthIn INT = NULL
+AS
+BEGIN
+	select 
+		CONVERT(varchar,[TranDate],6) [TranDate],
+		[BankDesc],
+		[BankDesc2],
+		[MyDesc],
+		[AmtDeducted],
+		[PaidUsing],
+		case when [IsInvestment]=0 then 'No' else 'Yes' end [IsInvestment],
+		[AddedOn],
+		[FYYear] 
+	from 
+		[dbo].[MonthlyExpense] 
+	where MONTH(TranDate)=@MonthIn and YEAR(TranDate)=2023 
+	order by TranDate desc
+
+END
+
+GO
+
+  ------------
+
+USE [BSE_NSE]
+GO
+
+/****** Object:  StoredProcedure [dbo].[usp_GET_Petrol_Report]    Script Date: 12-Sep-2023 5:08:24 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE PROCEDURE [dbo].[usp_GET_Petrol_Report]
+@OrderBy nvarchar(25)=NULL
+AS
+BEGIN
+
+DECLARE @TBL AS TABLE (TD DATETIME);
+
+;with T as(
+select CAST('01-Mar-2019' AS DATETIME) TD
+union all
+select DATEADD(MONTH,1, TD) FROM T WHERE DATEADD(MONTH,1, TD)<=GETDATE()) 
+ INSERT INTO @TBL (TD)
+SELECT TD FROM T
+
+	SELECT 
+		MonthIn,
+		MonthNm,
+		YearIn,
+		SUM([TotalPaid]) [TotalPaid], 
+		SUM([TotalLitre]) [TotalLitre], 
+		CASE WHEN SUM([TotalPaid])=0 THEN 0 ELSE CONVERT(NUMERIC(18,2), SUM([TotalPaid])/SUM([TotalLitre])) END [AVG_PerLitre],
+		MIN([PerLitre]) MIN_PerLitre,
+		MAX([PerLitre]) MAX_PerLitre,
+		(SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice]) [GrossPaid],
+		(SELECT SUM(ISNULL([RefundAmount],0)) FROM [dbo].[PetrolPrice]) [TotalRefund],
+		(SELECT SUM([TotalLitre]) FROM [dbo].[PetrolPrice]) [GrTotalLitre],
+		--(isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [FillingDate]= max(x.[FillingDate])),0)-
+		--isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [FillingDate]=min(x.[FillingDate])),0)) KMDriven
+		--(isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [FillingDate]>= dateadd(d,-(day(dateadd(m,1,[FillingDate]))),dateadd(m,1,[FillingDate])) order by [FillingDate] ),0)-
+		--isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [FillingDate]<=cast(('1-'+cast(MonthIn as nvarchar(2))+'-'+cast(YearIn as nvarchar(4))) as datetime) order by [FillingDate] desc),0)) KMDriven
+
+		(select top 1 KMDriven from [dbo].[PetrolPrice] y where [KMDriven]<>0 and month([FillingDate])=MonthIn and year([FillingDate])=YearIn) ODO,
+
+		CASE WHEN SUM([TotalPaid])=0 THEN 0 ELSE
+		(isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [KMDriven]<>0 and [FillingDate]>= dateadd(d,-(day(dateadd(m,1,cast(('1-'+MonthNm+'-'+cast(YearIn as nvarchar(4))) as datetime)))),dateadd(m,1,cast(('1-'+MonthNm+'-'+cast(YearIn as nvarchar(4))) as datetime))) order by [FillingDate]),
+		(isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [KMDriven]<>0 and [FillingDate]= max(x.[FillingDate])),0)))-
+		isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [KMDriven]<>0 and [FillingDate]=min(x.[FillingDate])),0)) END KMDriven
+	from(
+		SELECT TD [FillingDate], 
+			0 [TotalPaid], 
+			0 [TotalLitre], 
+			0 [PerLitre], 
+			MONTH(TD) MonthIn,
+			FORMAT(TD, 'MMMM') MonthNm,
+			YEAR(TD) YearIn 
+		FROM @TBL
+		WHERE (SELECT COUNT(*) FROM [dbo].[PetrolPrice] WHERE MONTH(FillingDate)=MONTH(TD) AND YEAR(FillingDate)=YEAR(TD))=0
+
+		UNION ALL
+
+		SELECT 
+			[FillingDate], 
+			[TotalPaid], 
+			[TotalLitre], 
+			[PerLitre], 
+			MONTH(FillingDate) MonthIn,
+			FORMAT(FillingDate, 'MMMM') MonthNm,
+			YEAR(FillingDate) YearIn
+		FROM [dbo].[PetrolPrice]
+		)x 
+	GROUP BY MonthIn,
+			MonthNm,
+			YearIn
+	ORDER BY YearIn DESC, MonthIn DESC
+
+/*
+	SELECT 
+		MonthIn,
+		MonthNm,
+		YearIn,
+		SUM([TotalPaid]) [TotalPaid], 
+		SUM([TotalLitre]) [TotalLitre], 
+		CONVERT(NUMERIC(18,2), SUM([TotalPaid])/SUM([TotalLitre])) [AVG_PerLitre],
+		MIN([PerLitre]) MIN_PerLitre,
+		MAX([PerLitre]) MAX_PerLitre,
+		(SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice]) [GrossPaid],
+		(SELECT SUM(ISNULL([RefundAmount],0)) FROM [dbo].[PetrolPrice]) [TotalRefund],
+		(SELECT SUM([TotalLitre]) FROM [dbo].[PetrolPrice]) [GrTotalLitre],
+		--(isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [FillingDate]= max(x.[FillingDate])),0)-
+		--isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [FillingDate]=min(x.[FillingDate])),0)) KMDriven
+		--(isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [FillingDate]>= dateadd(d,-(day(dateadd(m,1,[FillingDate]))),dateadd(m,1,[FillingDate])) order by [FillingDate] ),0)-
+		--isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [FillingDate]<=cast(('1-'+cast(MonthIn as nvarchar(2))+'-'+cast(YearIn as nvarchar(4))) as datetime) order by [FillingDate] desc),0)) KMDriven
+
+		(select top 1 KMDriven from [dbo].[PetrolPrice] y where [KMDriven]<>0 and month([FillingDate])=MonthIn and year([FillingDate])=YearIn) ODO,
+
+		(isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [KMDriven]<>0 and [FillingDate]>= dateadd(d,-(day(dateadd(m,1,cast(('1-'+MonthNm+'-'+cast(YearIn as nvarchar(4))) as datetime)))),dateadd(m,1,cast(('1-'+MonthNm+'-'+cast(YearIn as nvarchar(4))) as datetime))) order by [FillingDate]),
+		(isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [KMDriven]<>0 and [FillingDate]= max(x.[FillingDate])),0)))-
+		isnull((select top 1 KMDriven from [dbo].[PetrolPrice] y where [KMDriven]<>0 and [FillingDate]=min(x.[FillingDate])),0)) KMDriven
+		
+
+	from(
+		SELECT 
+			[FillingDate], 
+			[TotalPaid], 
+			[TotalLitre], 
+			[PerLitre], 
+			MONTH(FillingDate) MonthIn,
+			FORMAT(FillingDate, 'MMMM') MonthNm,
+			YEAR(FillingDate) YearIn
+		FROM [dbo].[PetrolPrice]
+	)x 
+	GROUP BY MonthIn,
+			MonthNm,
+			YearIn
+	ORDER BY YearIn DESC, MonthIn DESC
+	*/
+END
+
+GO
+
+--------------
+
+USE [BSE_NSE]
+GO
+
+/****** Object:  StoredProcedure [dbo].[usp_GET_Diesel_Report]    Script Date: 12-Sep-2023 5:08:38 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE PROCEDURE [dbo].[usp_GET_Diesel_Report]
+@OrderBy nvarchar(25)=NULL
+AS
+BEGIN
+	SELECT 
+		MonthIn,
+		MonthNm,
+		YearIn,
+		SUM([TotalPaid]) [TotalPaid], 
+		SUM([TotalLitre]) [TotalLitre], 
+		CONVERT(NUMERIC(18,2), SUM([TotalPaid])/SUM([TotalLitre])) [AVG_PerLitre],
+		MIN([PerLitre]) MIN_PerLitre,
+		MAX([PerLitre]) MAX_PerLitre,
+		(SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice]) [GrossPaid],
+		(SELECT SUM(ISNULL([RefundAmount],0)) FROM [dbo].[DieselPrice]) [TotalRefund],
+		(SELECT SUM([TotalLitre]) FROM [dbo].[DieselPrice]) [GrTotalLitre],
+		--(isnull((select top 1 KMDriven from [dbo].[DieselPrice] y where [FillingDate]= max(x.[FillingDate])),0)-
+		--isnull((select top 1 KMDriven from [dbo].[DieselPrice] y where [FillingDate]=min(x.[FillingDate])),0)) KMDriven
+		--(isnull((select top 1 KMDriven from [dbo].[DieselPrice] y where [FillingDate]>= dateadd(d,-(day(dateadd(m,1,[FillingDate]))),dateadd(m,1,[FillingDate])) order by [FillingDate] ),0)-
+		--isnull((select top 1 KMDriven from [dbo].[DieselPrice] y where [FillingDate]<=cast(('1-'+cast(MonthIn as nvarchar(2))+'-'+cast(YearIn as nvarchar(4))) as datetime) order by [FillingDate] desc),0)) KMDriven
+
+		(select top 1 KMDriven from [dbo].[DieselPrice] y where [KMDriven]<>0 and month([FillingDate])=MonthIn and year([FillingDate])=YearIn) ODO,
+
+		(isnull((select top 1 KMDriven from [dbo].[DieselPrice] y where [KMDriven]<>0 and [FillingDate]>= dateadd(d,-(day(dateadd(m,1,cast(('1-'+MonthNm+'-'+cast(YearIn as nvarchar(4))) as datetime)))),dateadd(m,1,cast(('1-'+MonthNm+'-'+cast(YearIn as nvarchar(4))) as datetime))) order by [FillingDate]),
+		(isnull((select top 1 KMDriven from [dbo].[DieselPrice] y where [KMDriven]<>0 and [FillingDate]= max(x.[FillingDate])),0)))-
+		isnull((select top 1 KMDriven from [dbo].[DieselPrice] y where [KMDriven]<>0 and [FillingDate]=min(x.[FillingDate])),0)) KMDriven
+		
+
+	from(
+		SELECT 
+			[FillingDate], 
+			[TotalPaid], 
+			[TotalLitre], 
+			[PerLitre], 
+			MONTH(FillingDate) MonthIn,
+			FORMAT(FillingDate, 'MMMM') MonthNm,
+			YEAR(FillingDate) YearIn
+		FROM [dbo].[DieselPrice]
+	)x 
+	GROUP BY MonthIn,
+			MonthNm,
+			YearIn
+	ORDER BY YearIn DESC, MonthIn DESC
+END
+
+GO
+
