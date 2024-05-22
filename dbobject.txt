@@ -490,7 +490,32 @@ END
 GO
 
 -----------------
+USE [BSE_NSE]
+GO
 
+/****** Object:  Table [dbo].[MonthlyReturn]    Script Date: 22-May-2024 1:31:37 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[MonthlyReturn](
+	[RecID] [bigint] NULL,
+	[TranDate] [datetime] NULL,
+	[BankDesc] [nvarchar](500) NULL,
+	[BankDesc2] [nvarchar](500) NULL,
+	[MyDesc] [nvarchar](500) NULL,
+	[AmtCredited] [numeric](18, 2) NULL,
+	[PaidUsing] [nvarchar](50) NULL,
+	[IsInvestment] [tinyint] NULL,
+	[AddedOn] [datetime] NULL,
+	[FYYear] [int] NULL
+) ON [PRIMARY]
+
+GO
+
+-----------------
 USE [BSE_NSE]
 GO
 /****** Object:  StoredProcedure [dbo].[usp_GET_Monthly_Report_Year]    Script Date: 22-May-2024 1:27:58 PM ******/
@@ -603,3 +628,4 @@ BEGIN
 												else '31-Mar-2024 23:59' end)) TotalInvestment
 												
 END
+--------------------
