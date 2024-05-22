@@ -489,3 +489,117 @@ END
 
 GO
 
+-----------------
+
+USE [BSE_NSE]
+GO
+/****** Object:  StoredProcedure [dbo].[usp_GET_Monthly_Report_Year]    Script Date: 22-May-2024 1:27:58 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROCEDURE [dbo].[usp_GET_Monthly_Report_Year]
+@OrderBy nvarchar(25)=NULL,
+@YearIN	 INT=NULL
+AS
+BEGIN
+
+	IF @YearIN IS NULL
+		SET @YearIN=0
+
+	SELECT 
+		MonthExp,
+		MonthNm,
+		YearExp,
+		MonthlyExpense+PetrolExpense+DieselExpense TotalExpense,
+		MonthlyExpense as Expense,
+		MonthlyInvestment as Investment,
+		PetrolExpense,
+		DieselExpense,
+		ATMWithdrawal,
+		SBI_SB_ATM,
+		SBI_NRE_ATM,
+		HDFC_ATM,
+		CANARA_RES_ATM
+	FROM
+	(
+		SELECT 
+			MONTH(t1.TranDate) MonthExp,
+			FORMAT(t1.TranDate, 'MMMM') MonthNm,
+			YEAR(t1.TranDate) YearExp,
+			SUM(case when IsInvestment=0 then AmtDeducted else 0 end) MonthlyExpense,
+			ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] t2 
+				WHERE MONTH(t2.FillingDate)=MONTH(t1.TranDate) and 
+				YEAR(t2.FillingDate)=YEAR(t1.TranDate)), 0.00) PetrolExpense,
+			ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] t2 
+				WHERE MONTH(t2.FillingDate)=MONTH(t1.TranDate) and 
+				YEAR(t2.FillingDate)=YEAR(t1.TranDate)), 0.00) DieselExpense,
+			SUM(case when IsInvestment=1 then AmtDeducted else 0 end) MonthlyInvestment,
+			SUM(case when MyDesc like '%ATM Withdrawal%' then AmtDeducted else 0 end) ATMWithdrawal,
+			SUM(case when MyDesc like '%ATM Withdrawal%' and (PaidUsing='SBI SB' or PaidUsing='SBI SB Card') then 1 else 0 end) SBI_SB_ATM,
+			SUM(case when MyDesc like '%ATM Withdrawal%' and (PaidUsing='SBI NRE' or PaidUsing='SBI NRE Card') then 1 else 0 end) SBI_NRE_ATM,
+			SUM(case when MyDesc like '%ATM Withdrawal%' and (PaidUsing='HDFC') then 1 else 0 end) HDFC_ATM,
+			SUM(case when MyDesc like '%ATM Withdrawal%' and (PaidUsing='Canara Reshma') then 1 else 0 end) CANARA_RES_ATM
+		FROM 
+			[dbo].[MonthlyExpense] t1
+		WHERE 
+			FYYear=case when @YearIN=0 then FYYear else @YearIN end
+		GROUP BY MONTH(t1.TranDate), YEAR(t1.TranDate),FORMAT(t1.TranDate, 'MMMM')
+	)x
+	ORDER BY 
+		CASE WHEN @OrderBy IS NULL OR @OrderBy='' THEN YearExp END desc, 
+		CASE WHEN @OrderBy IS NULL OR @OrderBy='' THEN MonthExp END desc, 
+		CASE WHEN @OrderBy='SPENT' THEN MonthlyExpense+PetrolExpense END
+
+
+	SELECT 
+		
+		FORMAT((SELECT SUM(AmtDeducted) FROM [dbo].[MonthlyExpense] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and IsInvestment=1),'#,#') Investment,
+		FORMAT(ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end),0),'#,#') Petrol,
+		FORMAT(ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end),0),'#,#') Diesel,
+		FORMAT((SELECT SUM(AmtDeducted) FROM [dbo].[MonthlyExpense] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and MyDesc like '%ATM Withdrawal%'),'#,#') ATMWithdrawal,
+		FORMAT((SELECT AVG(MonthlyExpense+PetrolExpense+DieselExpense) FROM
+		(
+			SELECT 
+				MONTH(t1.TranDate) MonthExp,
+				YEAR(t1.TranDate) YearExp,
+				SUM(case when IsInvestment=0 then AmtDeducted else 0 end) MonthlyExpense,
+				ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] t2 
+					WHERE MONTH(t2.FillingDate)=MONTH(t1.TranDate) and 
+					YEAR(t2.FillingDate)=YEAR(t1.TranDate)), 0.00) PetrolExpense,
+				ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] t2 
+					WHERE MONTH(t2.FillingDate)=MONTH(t1.TranDate) and 
+					YEAR(t2.FillingDate)=YEAR(t1.TranDate)), 0.00) DieselExpense,
+				SUM(case when IsInvestment=1 then AmtDeducted else 0 end) MonthlyInvestment
+			FROM 
+				[dbo].[MonthlyExpense] t1
+		WHERE 
+			FYYear=case when @YearIN=0 then FYYear else @YearIN end
+			GROUP BY MONTH(t1.TranDate), YEAR(t1.TranDate)
+		)x),'#,#') Monthly_AVG,
+	FORMAT(((SELECT SUM(AmtDeducted) FROM [dbo].[MonthlyExpense] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and IsInvestment=0)+ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end),0)+ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end),0)),'#,#') TotalExpense,
+		FORMAT(((SELECT SUM(AmtDeducted) FROM [dbo].[MonthlyExpense] where FYYear=case when @YearIN=0 then FYYear else @YearIN end)+
+				ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end),0)+
+				ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end),0)),'#,#') GrandTotal,
+		case when @YearIN=2020 then (60000+13980+(90000*10)) else 0 end TotalIncome,
+		FORMAT(((60000+13980+(90000*10))-((SELECT SUM(AmtDeducted) FROM [dbo].[MonthlyExpense] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and Month(TranDate)<>MONTH(getdate()) and IsInvestment=0)+ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and Month(FillingDate)<>MONTH(getdate())),0)+ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and Month(FillingDate)<>MONTH(getdate())),0))),'#,#') TotalSaved,
+		FORMAT(((60000+13980+(90000*10))-((SELECT SUM(AmtDeducted) FROM [dbo].[MonthlyExpense] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and  Month(TranDate)<>MONTH(getdate()) and IsInvestment=0)+ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and Month(FillingDate)<>MONTH(getdate())),0)+ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and Month(FillingDate)<>MONTH(getdate())),0)))/11.0,'#,#') TotAvgSaved,
+		FORMAT(((60000+13980+(90000*10))-((SELECT SUM(AmtDeducted) FROM [dbo].[MonthlyExpense] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and Month(TranDate)<>MONTH(getdate()))+(SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and Month(FillingDate)<>MONTH(getdate()))+ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] where FYYear=case when @YearIN=0 then FYYear else @YearIN end and Month(FillingDate)<>MONTH(getdate())),0))),'#,#') InHandSaved,
+		(select SUM([AmtCredited]) from [dbo].[MonthlyReturn] WHERE FYYear=case when @YearIN=0 then FYYear else @YearIN end and [MyDesc]='Gas Subsidy') GasSubsidy,
+		(select SUM(AmtDeducted) from [dbo].[MonthlyExpense] WHERE FYYear=case when @YearIN=0 then FYYear else @YearIN end and CCPaid=0 and PaidUsing='ICICI Credit Card') CCPending,
+		(select SUM(AmtDeducted) from [dbo].[MonthlyExpense] WHERE IsInvestment=1 and 
+			TranDate BETWEEN (case when @YearIN=2020 then '01-Apr-2019' 
+									when @YearIN=2021 then '01-Apr-2020'
+									when @YearIN=2022 then '01-Apr-2021'  
+									when @YearIN=2023 then '01-Apr-2022' 
+									when @YearIN=2024 then '01-Apr-2023'  
+												else '01-Apr-2024' end) and 
+							(case when @YearIN=2020 then '31-Mar-2020 23:59' 
+									when @YearIN=2021 then '31-Mar-2021 23:59' 
+									when @YearIN=2022 then '31-Mar-2022 23:59' 
+									when @YearIN=2023 then '31-Mar-2023 23:59' 
+									when @YearIN=2024 then '31-Mar-2024 23:59' 
+												else '31-Mar-2024 23:59' end)) TotalInvestment
+												
+END
