@@ -7,8 +7,9 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 
+
 ALTER PROCEDURE [dbo].[usp_GET_Chart_Details]
-@YearIn int=2025
+@YearIn int=2024
 AS
 BEGIN
 select val from(
@@ -29,17 +30,60 @@ select 11 inx, 'Feb '+ substring(convert(nvarchar(4), (@YearIn)), 3,2) union
 select 12 inx, 'Mar '+ substring(convert(nvarchar(4), (@YearIn)), 3,2)
 )x order by inx
 
-select '255' val union
-select '3200' union
-select '1500' union
-select '1300' union
-select '1000'
+--select '255' val union
+--select '3200' union
+--select '1500' union
+--select '1300' union
+--select '1000'
 
-select '355' val union
-select '1300' union
-select '1360' union
-select '1500' union
-select '1500'
+--select '355' val union
+--select '1300' union
+--select '1360' union
+--select '1500' union
+--select '1500'
 
+	SELECT  
+		MonthExp,YearExp,
+		convert(nvarchar(20), (MonthlyExpense+PetrolExpense+DieselExpense)) val 
+	FROM
+	(
+		SELECT   
+			MONTH(t1.TranDate) MonthExp,
+			YEAR(t1.TranDate) YearExp,
+			SUM(case when IsInvestment=0 then AmtDeducted else 0 end) MonthlyExpense,
+			ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] t2 
+				WHERE MONTH(t2.FillingDate)=MONTH(t1.TranDate) and 
+				YEAR(t2.FillingDate)=YEAR(t1.TranDate)), 0.00) PetrolExpense,
+			ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] t2 
+				WHERE MONTH(t2.FillingDate)=MONTH(t1.TranDate) and 
+				YEAR(t2.FillingDate)=YEAR(t1.TranDate)), 0.00) DieselExpense 
+		FROM 
+			[dbo].[MonthlyExpense] t1
+		WHERE 
+			FYYear=case when @YearIN=0 then FYYear else @YearIN end
+		GROUP BY MONTH(t1.TranDate), YEAR(t1.TranDate),FORMAT(t1.TranDate, 'MMMM')
+	)x order by YearExp, MonthExp
+	 
+SELECT 
+		MonthExp,YearExp,
+		 convert(nvarchar(20), PetrolExpense+DieselExpense) val 
+	FROM
+	(
+		SELECT  
+			MONTH(t1.TranDate) MonthExp,
+			YEAR(t1.TranDate) YearExp,
+			ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[PetrolPrice] t2 
+				WHERE MONTH(t2.FillingDate)=MONTH(t1.TranDate) and 
+				YEAR(t2.FillingDate)=YEAR(t1.TranDate)), 0.00) PetrolExpense,
+			ISNULL((SELECT SUM([TotalPaid]) FROM [dbo].[DieselPrice] t2 
+				WHERE MONTH(t2.FillingDate)=MONTH(t1.TranDate) and 
+				YEAR(t2.FillingDate)=YEAR(t1.TranDate)), 0.00) DieselExpense 
+		FROM 
+			[dbo].[MonthlyExpense] t1
+		WHERE 
+			FYYear=case when @YearIN=0 then FYYear else @YearIN end
+		GROUP BY MONTH(t1.TranDate), YEAR(t1.TranDate),FORMAT(t1.TranDate, 'MMMM')
+	)x order by YearExp, MonthExp
 END
+
 
